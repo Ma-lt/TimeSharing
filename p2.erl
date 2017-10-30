@@ -1,5 +1,5 @@
 -module(p2).
--export([start/0, controler/3, program/2]).
+-export([start/0, controler/3, program/5]).
 
 
 
@@ -28,13 +28,13 @@ controler([CurrentProgram | Rest],Queue,VarList)->
 		done->
 			controler(rotateList([CurrentProgram|Rest]),Queue,VarList);
 		{assign,NewVarList}->
-			controler(rotateList([CurrentProgram|Rest]),Queue, NewVarList);
+			controler([CurrentProgram|Rest],Queue, NewVarList);
 		retry->
 			controler(Rest,Queue++[CurrentProgram],VarList);
 		acquire->
-			controler(rotateList(lists:map(fun updateStatus/1, [CurrentProgram | Rest])),Queue,VarList);
+			controler(lists:map(fun updateStatus/1, [CurrentProgram | Rest]),Queue,VarList);
 		release->
-			{ProgramList,NewQueue}=removeFromQueue(rotateList([CurrentProgram | Rest]), Queue),
+			{ProgramList,NewQueue}=removeFromQueue([CurrentProgram | Rest], Queue),
 			controler(lists:map(fun updateStatus/1,ProgramList ),NewQueue,VarList);
 		stop->
 			controler(Rest, Queue,VarList)
@@ -48,7 +48,8 @@ removeFromQueue(Programs, [])->
 	{Programs,[]};
 
 removeFromQueue(Programs, [ProgramToRemove | Rest])->
-	{[ProgramToRemove]++Programs,Rest}.
+	{ActualProgram, ReadyQueue}=lists:split(1,Programs),
+	{ActualProgram++[ProgramToRemove]++ReadyQueue,Rest}.
 
 updateStatus({Pid,State})->
 	if
@@ -58,26 +59,56 @@ updateStatus({Pid,State})->
 			{Pid, true}
 	end.
 
-program([],_)->
+program([],_,_,_,_)->
 	programEnd;
 
-program([ActualInst | Rest],Id)->
+program([ActualInst | Rest],Id,TotalQuantum,RemainingQuantum,InstDuration)->
 	receive
 		{true, VarList}->%puede ejecutar acquire
-			Lock = false,
-			controler ! execute(ActualInst,VarList,Lock,Id),
-			program(Rest,Id);
+			case	availableTime(ActualInst,RemainingQuantum,InstDuration) of
+			       	{true, RemainingTime}->
+					controler ! execute(ActualInst,VarList,false,Id),
+					program(Rest,Id,TotalQuantum,RemainingTime,InstDuration);
+				false->
+					controler ! done,
+					program([ActualInst | Rest], Id, TotalQuantum, TotalQuantum, InstDuration)
+			end;
 
 		{false, VarList}->%no puede ejecutar acquire
-			Lock = true,
-			case execute(ActualInst,VarList,Lock,Id) of
-				retry->
-					controler ! retry,
-					program([ActualInst | Rest],Id);
-				Resp->
-					controler ! Resp,
-					program(Rest,Id)
+			case availableTime(ActualInst,RemainingQuantum, InstDuration) of
+			       	{true, RemainingTime}->
+					case execute(ActualInst,VarList,true,Id) of
+						retry->
+							controler ! retry,
+							program([ActualInst | Rest],Id,TotalQuantum, RemainingQuantum, InstDuration);
+						Resp->
+							controler ! Resp,
+							program(Rest,Id, TotalQuantum, RemainingTime, InstDuration)
+					end;
+				false->
+					controler ! done,
+					program([ActualInst | Rest], Id, TotalQuantum, TotalQuantum, InstDuration)
 			end
+	end.
+
+availableTime(Instruction, RemainingQ, InstsDuration)->
+	CurrentInstTime = case Instruction of
+				  {write,_}->
+					  element(2,InstsDuration);
+				  {_,_}->
+					  element(1,InstsDuration);
+				  acquire->
+					  element(3,InstsDuration);
+				  release->
+					  element(4,InstsDuration);
+				  stop->
+					  element(5,InstsDuration)
+			  end,
+	if
+		CurrentInstTime =< RemainingQ->
+			{true, RemainingQ-CurrentInstTime};
+		true->
+			false
 	end.
 
 execute(Instruction, VarList, Lock,Id)->
@@ -119,8 +150,8 @@ writeVariable(Var, VarList,Id)->
 			io:format("~p = 0~n",[Id])
 	end.
 start()->
-	Pid = spawn(p2, program, [[{a,4},{write,a},acquire,{b,9},{write,b},release,{write,b},stop],1]),
-	Pid2 = spawn(p2, program, [[{a,3},{write,a},acquire,{b,8},{write,b},release,{write,b},stop],2]),
-	Pid3 = spawn(p2, program, [[{b,5},{a,17},{write,a},{write,b}, acquire,{b,21},{write,b}, release,{write,b},stop],3]),
+	Pid = spawn(p2, program, [[{a,4},{write,a},acquire,{b,9},{write,b},release,{write,b},stop],1,1,1,{1,1,1,1,1}]),
+	Pid2 = spawn(p2, program, [[{a,3},{write,a},acquire,{b,8},{write,b},release,{write,b},stop],2,1,1,{1,1,1,1,1}]),
+	Pid3 = spawn(p2, program, [[{b,5},{a,17},{write,a},{write,b},acquire,{b,21},{write,b},release,{write,b},stop],3,1,1,{1,1,1,1,1}]),
 	register(controler, spawn(p2,controler,[[{Pid, true},{Pid2,true},{Pid3, true}],[],[]])).
 	

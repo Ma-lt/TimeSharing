@@ -3,7 +3,7 @@
 
 read(FileName)->
 	{ok, Binary} = file:read_file(FileName),
-	[binary_to_list(Bin) || Bin <- binary:split(Binary,<<"\n">>,[global]), Bin =/= << >>].
+	[binary_to_list(Bin) || Bin <- binary:split(Binary,[<<"\r\n">>, <<"\n">>],[global]), Bin =/= << >>].
 
 
 getParams([Head|Rest])->

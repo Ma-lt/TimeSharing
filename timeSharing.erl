@@ -124,7 +124,7 @@ program([ActualInst | Rest],Id,TotalQuantum,RemainingQuantum,InstDuration)->
 					case execute(ActualInst,VarList,true,Id) of
 						retry->
 							controler ! retry,
-							program([ActualInst | Rest],Id,TotalQuantum, RemainingQuantum, InstDuration);
+							program([ActualInst | Rest],Id,TotalQuantum, TotalQuantum, InstDuration);
 						Resp->
 							controler ! Resp,
 							program(Rest,Id, TotalQuantum, RemainingTime, InstDuration)

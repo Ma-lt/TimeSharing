@@ -145,7 +145,7 @@ availableTime(Instruction, RemainingQ, InstsDuration)->
 					  element(5,InstsDuration)
 			  end,
 	if
-		CurrentInstTime =< RemainingQ->
+		RemainingQ > 0->
 			{true, RemainingQ-CurrentInstTime};
 		true->
 			false

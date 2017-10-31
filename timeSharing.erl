@@ -49,6 +49,8 @@ controler({Pid, State},_,VarList)->
 	receive
 		done->
 			done;
+		write->
+			write;
 		{assign,NewVarList}->
 			{assign,NewVarList};
 		acquire->
@@ -66,6 +68,8 @@ controler([CurrentProgram | Rest],Queue,VarList)->
 	case controler(CurrentProgram,foo,VarList) of
 		done->
 			controler(rotateList([CurrentProgram|Rest]),Queue,VarList);
+		write->
+			controler([CurrentProgram|Rest],Queue, VarList);
 		{assign,NewVarList}->
 			controler([CurrentProgram|Rest],Queue, NewVarList);
 		retry->
@@ -154,23 +158,23 @@ availableTime(Instruction, RemainingQ, InstsDuration)->
 execute(Instruction, VarList, Lock,Id)->
 	case Instruction of
 		{write, Var}->
-			%io:format("Writing~n",[]),
+			%io:format("P~p: Writing ~p~n",[Id,Var]),
 			writeVariable(Var,VarList,Id),				
-			done;
+			write;
 		{Var, Value}->
-			%io:format("P: assigning ~p to ~p~n",[Value, Var]),
+			%io:format("P~p: assigning ~p to ~p~n",[Id,Value, Var]),
 			{assign ,assignVariable(Var, Value, VarList)};
 		acquire when Lock == false->
-			%io:format("P: ~p~n",[acquire]),
+			%io:format("P~p: ~p~n",[Id,acquire]),
 			acquire;
 		acquire ->
-			%io:format("P: ~p~n",["acquire failed, waiting"]),
+			%io:format("P~p: ~p~n",[Id,"acquire failed, waiting"]),
 			retry;
 		release ->
-			%io:format("P: ~p~n",[release]),
+			%io:format("P~p: ~p~n",[Id,release]),
 			release;
 		stop ->
-			%io:format("P: ~p~n",[stop]),
+			%io:format("P~p: ~p~n",[Id,stop]),
 			stop
 	end.
 

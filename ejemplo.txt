@@ -1,0 +1,27 @@
+3 1 1 1 1 1 1
+a = 4
+write a
+acquire
+b = 9
+write b
+release
+write b
+stop
+a = 3
+write a
+acquire
+b = 8
+write b
+release
+write b
+stop
+b = 5
+a = 17
+write a
+write b
+acquire
+b = 21
+write b
+release
+write b
+stop

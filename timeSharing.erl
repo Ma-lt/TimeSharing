@@ -188,7 +188,7 @@ writeVariable(Var, VarList,Id)->
 		{_ , Value}->
 			io:format("~p: ~p~n",[Id, Value]);
 		false->
-			io:format("~p = 0~n",[Id])
+			io:format("~p: 0~n",[Id])
 	end.
 
 spawner(Max,Max,[CurrentProgramInstructions|_],Quantum,InstructionDuration)->
